@@ -9,7 +9,6 @@ from . import VERSION, URANIUM_DIR, Chunk, parse_commit_message, restore_last_ve
 THEME_COLOR: str = Color.coral
 URANIUM_CHUNK: Chunk = Chunk("uranium")
 
-
 def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", *args],

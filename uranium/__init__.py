@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - optional UI dependency
 
         return _FallbackModule()
 
-VERSION: str = "26.3"
+VERSION: str = "26.4"
 RESERVED_CHUNK_NAMES: set[str] = {".git"}
 URANIUM_GIT_NAME: str = "Uranium"
 URANIUM_GIT_EMAIL: str = "uranium@localhost"
@@ -372,8 +372,6 @@ class Chunk:
             raise ValueError(f"Chunk name '{name}' is reserved and cannot be used.")
         self.name: str = name
         self.path: Path = URANIUM_DIR / self.name
-        if worktree_is_tampered(URANIUM_DIR):
-            restore_last_verifiable_commit(URANIUM_DIR)
         if create and not self.path.exists():
             self.path.mkdir(parents=True)
             try:
@@ -381,6 +379,8 @@ class Chunk:
                 reset_git_identity_to_unauthorized(URANIUM_DIR)
             except subprocess.CalledProcessError as e:
                 raise RuntimeError(f"Failed to initialize git repository: {e}")
+        if worktree_is_tampered(URANIUM_DIR):
+            restore_last_verifiable_commit(URANIUM_DIR)
 
     def _require_clean_worktree(self) -> None:
         if worktree_is_tampered(URANIUM_DIR):
