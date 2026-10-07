@@ -1,30 +1,13 @@
 import json, platform, re, sys, subprocess, shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-try:
-    from nitrogen import require
-except ImportError:  # pragma: no cover - optional UI dependency
-    def require(_module: str):
-        class _ColorFallback:
-            reset = "\033[0m"
-            bold = "\033[1m"
-            gray = "\033[90m"
-            coral = "\033[38;5;208m"
-            lime = "\033[92m"
-            yellow = "\033[93m"
-            cyan = "\033[96m"
-
-        class _FallbackModule:
-            Color = _ColorFallback
-
-        return _FallbackModule()
-
-from . import VERSION, URANIUM_DIR, Chunk, parse_commit_message, restore_last_verifiable_commit, worktree_is_tampered
+from nitrogen import require
 Color = require("mg.color").Color
+from . import VERSION, URANIUM_DIR, Chunk, parse_commit_message, restore_last_verifiable_commit, worktree_is_tampered
 
 
-THEME_COLOR = Color.coral
+THEME_COLOR: str = Color.coral
+URANIUM_CHUNK: Chunk = Chunk("uranium")
 
 
 def _git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -198,24 +181,42 @@ def _not_found_message(chunk_name: str, key: str | None = None) -> str:
     return f"{THEME_COLOR}uranium:{Color.reset} '{chunk_name}' not found"
 
 def sync(argv: list[str]) -> None:
+    if not URANIUM_CHUNK.get("allow-sync", False):
+        username = subprocess.check_output(
+            ["gh", "api", "user", "--jq", ".login"],
+            text=True
+        ).strip()
+        print(f"{THEME_COLOR}uranium:info:{Color.reset} allow uranium to create and manage a private repository ({username}/.uranium) on your behalf? this repository will be used to sync uranium data across your devices.")
+        print(f"{THEME_COLOR}uranium:info:{Color.reset} full source code available at: https://github.com/Wednesware/Uranium")
+        try:
+            answer: str = input(f"(y/N): ")
+            if "y" in answer.lower():
+                if answer.lower() == "nay":
+                    # protects Shakespeare from accidental confirmation of the sync operation
+                    raise KeyboardInterrupt
+                URANIUM_CHUNK["allow-sync"] = True
+            else:
+                raise KeyboardInterrupt
+        except (KeyboardInterrupt, EOFError):
+            print(f"\n{THEME_COLOR}uranium:info:{Color.reset} operation cancelled. nothing was done.")
+            sys.exit(1)
     print(f"{THEME_COLOR}uranium:info:{Color.reset} synchronizing local and cloud data...")
     branch = _git_current_branch()
     machine = platform.node() or "uranium"
-
+    repo_exists = subprocess.run(
+        ["gh", "repo", "view", ".uranium"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    ).returncode == 0
+    if not repo_exists:
+        print(f"{THEME_COLOR}  uranium:info:{Color.reset} no github repository found for '.uranium', creating one for you.")
+        subprocess.run(
+            ["gh", "repo", "create", ".uranium", "--private"],
+            check=True,
+        )
     if not _git("remote").stdout.strip():
         print(f"{THEME_COLOR}  uranium:info:{Color.reset} setting up git remote for '.uranium'.")
-        repo_exists = subprocess.run(
-            ["gh", "repo", "view", ".uranium"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        ).returncode == 0
-        if not repo_exists:
-            print(f"{THEME_COLOR}  uranium:info:{Color.reset} no github repository found for '.uranium', creating one for you.")
-            subprocess.run(
-                ["gh", "repo", "create", ".uranium", "--private"],
-                check=True,
-            )
         repo_url = subprocess.run(
             ["gh", "repo", "view", ".uranium", "--json", "url", "--jq", ".url"],
             capture_output=True,
@@ -262,7 +263,6 @@ def sync(argv: list[str]) -> None:
     print(f"{THEME_COLOR}uranium:info:{Color.reset} sync complete.")
 
 def main(argv: list[str] | None = None) -> int:
-    Chunk("uranium")
     if not argv or argv[0] in ("help", "-h", "--help"):
         _print_help()
         return 0

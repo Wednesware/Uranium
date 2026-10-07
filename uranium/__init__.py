@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - optional UI dependency
 
         return _FallbackModule()
 
-VERSION: str = "26.1"
+VERSION: str = "26.3"
 RESERVED_CHUNK_NAMES: set[str] = {".git"}
 URANIUM_GIT_NAME: str = "Uranium"
 URANIUM_GIT_EMAIL: str = "uranium@localhost"
