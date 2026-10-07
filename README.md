@@ -2,7 +2,7 @@
 
 # Uranium
 
-Uranium is a small local key-value store for persisting simple app data in a chunked, JSON-backed filesystem layout. It is intended for lightweight program state, user preferences, and small game or app configuration.
+Local and cloud-synced key-value storage for programs to persist non-sensitive user data.
 
 ## Dependencies
 
